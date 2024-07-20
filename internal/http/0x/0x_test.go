@@ -1,4 +1,4 @@
-package dex
+package zerox
 
 import (
 	"context"
@@ -7,8 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/onmetahq/go-evm.git/internal/http/common"
 	metahttp "github.com/onmetahq/meta-http/pkg/meta_http"
 )
+
+const TOKENA = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+const TOKENB = "0x2791bca1f2de4661ed88a30c99a7a9449aa84174"
 
 func Test0XFetchExactInQuote(t *testing.T) {
 	c := metahttp.NewClient("", slog.Default(), 30*time.Second)
@@ -17,7 +21,7 @@ func Test0XFetchExactInQuote(t *testing.T) {
 		137: "https://polygon.api.0x.org",
 	})
 
-	req := QuoteReq{
+	req := common.QuoteReq{
 		Src:            TOKENB,
 		Dst:            TOKENA,
 		ChainId:        137,
@@ -41,7 +45,7 @@ func Test0XFetchExactOutQuote(t *testing.T) {
 		137: "https://polygon.api.0x.org",
 	})
 
-	req := QuoteReq{
+	req := common.QuoteReq{
 		Src:            TOKENB,
 		Dst:            TOKENA,
 		ChainId:        137,
@@ -70,7 +74,7 @@ func Test0XFetchExactInSwapCallData(t *testing.T) {
 		137: "https://polygon.api.0x.org",
 	})
 
-	req := QuoteReq{
+	req := common.QuoteReq{
 		Src:            TOKENB,
 		Dst:            TOKENA,
 		ChainId:        137,

@@ -1,10 +1,13 @@
-package dex
+package zerox
 
 import (
 	"context"
 	"fmt"
+	"math/big"
 	uri "net/url"
+	"os"
 
+	"github.com/onmetahq/go-evm.git/internal/http/common"
 	metahttp "github.com/onmetahq/meta-http/pkg/meta_http"
 )
 
@@ -24,7 +27,7 @@ func (o *zeroX) FetchSupportedTokens(ctx context.Context, chainId uint64) (any, 
 	return "", fmt.Errorf("operation not supported")
 }
 
-func (o *zeroX) FetchExactInQuote(ctx context.Context, req QuoteReq) (QuoteRes, error) {
+func (o *zeroX) FetchExactInQuote(ctx context.Context, req common.QuoteReq) (common.QuoteRes, error) {
 	v := uri.Values{}
 	v.Add("buyToken", req.Dst)
 	v.Add("sellToken", req.Src)
@@ -42,13 +45,13 @@ func (o *zeroX) FetchExactInQuote(ctx context.Context, req QuoteReq) (QuoteRes, 
 
 	res, err := o.price(ctx, req.ChainId, v.Encode())
 	if err != nil {
-		return QuoteRes{}, err
+		return common.QuoteRes{}, err
 	}
 	res.OutAmount = res.BuyAmount
 	return parseZeroxResponse(req, res)
 }
 
-func (o *zeroX) FetchExactOutQuote(ctx context.Context, req QuoteReq) (QuoteRes, error) {
+func (o *zeroX) FetchExactOutQuote(ctx context.Context, req common.QuoteReq) (common.QuoteRes, error) {
 	v := uri.Values{}
 	v.Add("buyToken", req.Dst)
 	v.Add("sellToken", req.Src)
@@ -66,13 +69,13 @@ func (o *zeroX) FetchExactOutQuote(ctx context.Context, req QuoteReq) (QuoteRes,
 
 	res, err := o.price(ctx, req.ChainId, v.Encode())
 	if err != nil {
-		return QuoteRes{}, err
+		return common.QuoteRes{}, err
 	}
 	res.OutAmount = res.SellAmount
 	return parseZeroxResponse(req, res)
 }
 
-func (o *zeroX) FetchExactInSwapCallData(ctx context.Context, req QuoteReq) (ZeroXSwapResponse, error) {
+func (o *zeroX) FetchExactInSwapCallData(ctx context.Context, req common.QuoteReq) (ZeroXSwapResponse, error) {
 	v := uri.Values{}
 	v.Add("buyToken", req.Dst)
 	v.Add("sellToken", req.Src)
@@ -92,7 +95,7 @@ func (o *zeroX) FetchExactInSwapCallData(ctx context.Context, req QuoteReq) (Zer
 	return o.quote(ctx, req.ChainId, v.Encode())
 }
 
-func (o *zeroX) FetchExactOutSwapCallData(ctx context.Context, req QuoteReq) (ZeroXSwapResponse, error) {
+func (o *zeroX) FetchExactOutSwapCallData(ctx context.Context, req common.QuoteReq) (ZeroXSwapResponse, error) {
 	v := uri.Values{}
 	v.Add("buyToken", req.Dst)
 	v.Add("sellToken", req.Src)
@@ -122,7 +125,7 @@ func (o *zeroX) quote(ctx context.Context, chainId uint64, queryParams string) (
 	var res ZeroXSwapResponse
 
 	_, err := o.client.Get(ctx, url, map[string]string{
-		"0x-api-key": "c5f47019-f11a-4939-bf34-4dad71975985",
+		"0x-api-key": os.Getenv("0X_KEY"),
 	}, &res)
 
 	if err != nil {
@@ -142,7 +145,7 @@ func (o *zeroX) price(ctx context.Context, chainId uint64, queryParams string) (
 	var res ZeroXQuoteResponse
 
 	_, err := o.client.Get(ctx, url, map[string]string{
-		"0x-api-key": "c5f47019-f11a-4939-bf34-4dad71975985",
+		"0x-api-key": os.Getenv("0X_KEY"),
 	}, &res)
 
 	if err != nil {
@@ -241,4 +244,31 @@ type ZeroXSwapResponse struct {
 	} `json:"sources"`
 	To    string `json:"to"`
 	Value string `json:"value"`
+}
+
+func parseZeroxResponse(req common.QuoteReq, quote ZeroXQuoteResponse) (common.QuoteRes, error) {
+	outAmount, ok := new(big.Int).SetString(quote.OutAmount, 0)
+	if !ok {
+		return common.QuoteRes{}, fmt.Errorf("invalid out amount from 0x, amount: %v", quote.OutAmount)
+	}
+
+	gas, ok := new(big.Int).SetString(quote.Gas, 0)
+	if !ok {
+		return common.QuoteRes{}, fmt.Errorf("invalid out amount from 0x, amount: %v", quote.OutAmount)
+	}
+
+	gasPrice, ok := new(big.Int).SetString(quote.GasPrice, 0)
+	if !ok {
+		return common.QuoteRes{}, fmt.Errorf("invalid out amount from 0x, amount: %v", quote.OutAmount)
+	}
+
+	return common.QuoteRes{
+		ChainId:    req.ChainId,
+		Src:        req.Src,
+		Dst:        req.Dst,
+		FromAmount: req.Amount,
+		ToAmount:   outAmount,
+		Gas:        gas,
+		GasPrice:   gasPrice,
+	}, nil
 }

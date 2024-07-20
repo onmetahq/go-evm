@@ -1,4 +1,4 @@
-package dex
+package oneinch
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/onmetahq/go-evm.git/internal/http/common"
 	metahttp "github.com/onmetahq/meta-http/pkg/meta_http"
 )
 
@@ -31,7 +32,7 @@ func TestFetchExactInQuote(t *testing.T) {
 	c := metahttp.NewClient("https://api.1inch.dev/swap/v5.2", slog.Default(), 30*time.Second)
 
 	oneClient := NewOneInch(c)
-	req := QuoteReq{
+	req := common.QuoteReq{
 		Src:     TOKENB,
 		Dst:     TOKENA,
 		ChainId: 137,
@@ -51,7 +52,7 @@ func TestFetchExactInSwapCallData(t *testing.T) {
 	c := metahttp.NewClient("https://api.1inch.dev/swap/v5.2", slog.Default(), 30*time.Second)
 
 	oneClient := NewOneInch(c)
-	req := QuoteReq{
+	req := common.QuoteReq{
 		ChainId:            137,
 		Src:                TOKENB,
 		Dst:                TOKENA,

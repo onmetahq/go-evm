@@ -1,11 +1,14 @@
-package dex
+package oneinch
 
 import (
 	"context"
 	"fmt"
+	"math/big"
 	uri "net/url"
+	"os"
 	"strconv"
 
+	"github.com/onmetahq/go-evm.git/internal/http/common"
 	metahttp "github.com/onmetahq/meta-http/pkg/meta_http"
 )
 
@@ -23,7 +26,7 @@ func (o *oneInch) FetchSupportedTokens(ctx context.Context, chainId uint64) ([]O
 	var res OneInchTokens
 	url := fmt.Sprintf("/%d/tokens", chainId)
 	_, err := o.client.Get(ctx, url, map[string]string{
-		"Authorization": fmt.Sprintf("Bearer %s", "dk3ls7slBGpQvMYl09z1y4eb2T4M6RWd"),
+		"Authorization": fmt.Sprintf("Bearer %s", os.Getenv("1INCH_KEY")),
 	}, &res)
 
 	if err != nil {
@@ -38,7 +41,7 @@ func (o *oneInch) FetchSupportedTokens(ctx context.Context, chainId uint64) ([]O
 	return out, nil
 }
 
-func (o *oneInch) FetchExactInQuote(ctx context.Context, req QuoteReq) (QuoteRes, error) {
+func (o *oneInch) FetchExactInQuote(ctx context.Context, req common.QuoteReq) (common.QuoteRes, error) {
 	v := uri.Values{}
 	v.Add("src", req.Src)
 	v.Add("dst", req.Dst)
@@ -49,20 +52,16 @@ func (o *oneInch) FetchExactInQuote(ctx context.Context, req QuoteReq) (QuoteRes
 	url := fmt.Sprintf("/%d/quote?%s", req.ChainId, query)
 	var res OneInchQuoteResponse
 	_, err := o.client.Get(ctx, url, map[string]string{
-		"Authorization": fmt.Sprintf("Bearer %s", "dk3ls7slBGpQvMYl09z1y4eb2T4M6RWd"),
+		"Authorization": fmt.Sprintf("Bearer %s", os.Getenv("1INCH_KEY")),
 	}, &res)
 	if err != nil {
-		return QuoteRes{}, fmt.Errorf("unable to fetch 1inch quote, err: %v", err)
+		return common.QuoteRes{}, fmt.Errorf("unable to fetch 1inch quote, err: %v", err)
 	}
 
 	return parse1inchResponse(req, res)
 }
 
-func (o *oneInch) FetchExactOutQuote(ctx context.Context, req QuoteReq) (QuoteRes, error) {
-	return QuoteRes{}, fmt.Errorf("operation exact out is not supported")
-}
-
-func (o *oneInch) FetchExactInSwapCallData(ctx context.Context, req QuoteReq) (OneInchSwapResponse, error) {
+func (o *oneInch) FetchExactInSwapCallData(ctx context.Context, req common.QuoteReq) (OneInchSwapResponse, error) {
 	v := uri.Values{}
 	v.Add("src", req.Src)
 	v.Add("dst", req.Dst)
@@ -85,7 +84,7 @@ func (o *oneInch) FetchExactInSwapCallData(ctx context.Context, req QuoteReq) (O
 	url := fmt.Sprintf("/%d/swap?%s", req.ChainId, query)
 	var res OneInchSwapResponse
 	_, err := o.client.Get(ctx, url, map[string]string{
-		"Authorization": fmt.Sprintf("Bearer %s", "dk3ls7slBGpQvMYl09z1y4eb2T4M6RWd"),
+		"Authorization": fmt.Sprintf("Bearer %s", os.Getenv("1INCH_KEY")),
 	}, &res)
 	if err != nil {
 		return OneInchSwapResponse{}, fmt.Errorf("unable to fetch 1inch quote, err: %v", err)
@@ -94,7 +93,11 @@ func (o *oneInch) FetchExactInSwapCallData(ctx context.Context, req QuoteReq) (O
 	return res, nil
 }
 
-func (o *oneInch) FetchExactOutSwapCallData(ctx context.Context, req QuoteReq) (OneInchSwapResponse, error) {
+func (o *oneInch) FetchExactOutQuote(ctx context.Context, req common.QuoteReq) (common.QuoteRes, error) {
+	return common.QuoteRes{}, fmt.Errorf("operation exact out is not supported")
+}
+
+func (o *oneInch) FetchExactOutSwapCallData(ctx context.Context, req common.QuoteReq) (OneInchSwapResponse, error) {
 	return OneInchSwapResponse{}, fmt.Errorf("operation not supported")
 }
 
@@ -131,4 +134,20 @@ type OneInchSwapResponse struct {
 		To       string `json:"to"`
 		Value    string `json:"value"`
 	} `json:"tx"`
+}
+
+func parse1inchResponse(req common.QuoteReq, quote OneInchQuoteResponse) (common.QuoteRes, error) {
+	outAmount, ok := new(big.Int).SetString(quote.ToAmount, 0)
+	if !ok {
+		return common.QuoteRes{}, fmt.Errorf("invalid out amount from 0x, amount: %v", quote.ToAmount)
+	}
+
+	return common.QuoteRes{
+		ChainId:    req.ChainId,
+		Src:        req.Src,
+		Dst:        req.Dst,
+		FromAmount: req.Amount,
+		ToAmount:   outAmount,
+		Gas:        big.NewInt(quote.Gas),
+	}, nil
 }
