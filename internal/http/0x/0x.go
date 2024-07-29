@@ -7,7 +7,7 @@ import (
 	uri "net/url"
 	"os"
 
-	"github.com/onmetahq/go-evm.git/internal/http/common"
+	"github.com/onmetahq/go-evm/internal/http/common"
 	metahttp "github.com/onmetahq/meta-http/pkg/meta_http"
 )
 
